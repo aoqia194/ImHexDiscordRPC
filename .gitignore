@@ -1,2 +1,12 @@
-.idea/
-cmake-build-*/
+/*
+
+!/.github
+!/**/cmake
+!/include
+!/romfs
+!/src
+
+!/**/.gitignore
+!/**/CMakeLists.txt
+!/**/conanfile.txt
+!/README.md
