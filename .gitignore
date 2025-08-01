@@ -7,6 +7,9 @@
 !/src
 
 !/**/.gitignore
-!/**/CMakeLists.txt
-!/**/conanfile.txt
+!/cmake/DiscordGameSDK/CMakeLists.txt
+!/.clang-format
+!/.clang-tidy
+!/CMakePresets.json
 !/README.md
+!/vcpkg.json
