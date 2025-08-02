@@ -3,8 +3,17 @@
 ### Sets the minimal required CMake version to run this script.
 cmake_minimum_required(VERSION 3.30)
 
+### Current Discord Game SDK Version
+# NOTE: 3.2.1 has a broken ipc between client so ClearActivity doesn't work.
+# Revering to 3.1.0 fixes this, but it's only temporary.
+# Maybe working on a proper Discord c++ lib in the future?
+# Or, Rust probably has one that we can use the functions for.
+set(DISCORD_GAME_SDK_V_MAJOR 3)
+set(DISCORD_GAME_SDK_V_MINOR 2)
+set(DISCORD_GAME_SDK_V_BUILD 1)
+
 ### Sets project name and version.
-project(discord_game_sdk VERSION 0.1)
+project(discord_game_sdk VERSION "${DISCORD_GAME_SDK_V_MAJOR}.${DISCORD_GAME_SDK_V_MINOR}.${DISCORD_GAME_SDK_V_BUILD}")
 
 ### Module used to download Discord Game SDK.
 include(FetchContent)
@@ -40,11 +49,6 @@ if (ARCH STREQUAL "x86" OR ARCH STREQUAL "x86_64")
 else ()
     message(FATAL_ERROR "ARCH has wrong value. Was: ${ARCH}, must be: x86_64|x86")
 endif ()
-
-### Current Discord Game SDK Version
-set(DISCORD_GAME_SDK_V_MAJOR 3)
-set(DISCORD_GAME_SDK_V_MINOR 2)
-set(DISCORD_GAME_SDK_V_BUILD 1)
 
 ### Downloads Discord Game SDK
 FetchContent_Declare(

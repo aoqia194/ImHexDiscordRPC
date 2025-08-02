@@ -2,12 +2,13 @@
 
 !/.github
 !/**/cmake
+!/lib
 !/include
 !/romfs
 !/src
 
 !/**/.gitignore
-!/cmake/DiscordGameSDK/CMakeLists.txt
+!/lib/DiscordGameSDK/CMakeLists.txt
 !/.clang-format
 !/.clang-tidy
 !/CMakePresets.json

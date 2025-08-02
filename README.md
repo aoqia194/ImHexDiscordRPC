@@ -4,7 +4,7 @@ This is a Discord RPC plugin for ImHex. That's all!
 
 ## Usage
 
-Put in plugins folder or download it.
+Put hexplug in `plugins` folder and dlls in `lib` folder.
 
 ## Building
 

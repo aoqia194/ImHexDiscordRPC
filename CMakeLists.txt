@@ -6,7 +6,7 @@ project(ImHexDiscordRPC LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 
 include(ImHexSDK)
-add_subdirectory("${CMAKE_MODULE_PATH}/DiscordGameSDK")
+add_subdirectory("lib/DiscordGameSDK")
 
 # Source file globs
 

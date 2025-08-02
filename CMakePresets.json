@@ -18,7 +18,7 @@
             }
         },
         {
-            "name": "default-mingw64",
+            "name": "default-mingw-dynamic",
             "hidden": true,
             "generator": "Ninja",
             "cacheVariables": {
@@ -33,7 +33,7 @@
             "name": "debug",
             "displayName": "Debug",
             "inherits": [
-                "default-mingw64"
+                "default-mingw-dynamic"
             ],
             "binaryDir": "${sourceDir}/build/debug",
             "cacheVariables": {
@@ -44,7 +44,7 @@
             "name": "release",
             "displayName": "Release",
             "inherits": [
-                "default-mingw64"
+                "default-mingw-dynamic"
             ],
             "binaryDir": "${sourceDir}/build/release",
             "cacheVariables": {

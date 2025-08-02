@@ -34,40 +34,42 @@ enum UserStatus : int
 
 namespace rpcdata
 {
-    constexpr static auto clientId = 1400779994891944026u;
+    constexpr static discord::ClientId clientId = 1400779994891944026;
     constexpr static auto largeImage = "icon_1024";
 } // namespace rpcdata
 
 namespace views
 {
-    constexpr auto ABOUT = "hex.builtin.view.about.name";
-    constexpr auto ACHIEVEMENTS = "hex.builtin.view.achievements.name";
-    constexpr auto CONSTANTS = "hex.builtin.view.constants.name";
-    constexpr auto CONTENT_STORE = "hex.builtin.view.store.name";
-    constexpr auto DATA_PROCESSOR = "hex.builtin.view.data_processor.name";
-    constexpr auto HELP = "hex.builtin.view.help.name";
-    constexpr auto HEX_EDITOR = "hex.builtin.view.hex_editor.name";
-    constexpr auto LOG_CONSOLE = "hex.builtin.view.log_console.name";
-    constexpr auto PATCHES = "hex.builtin.view.patches.name";
-    constexpr auto PATTERN_DATA = "hex.builtin.view.pattern_data.name";
-    constexpr auto PATTERN_EDITOR = "hex.builtin.view.pattern_editor.name";
+    // clang-format off
+    constexpr auto ABOUT             = "hex.builtin.view.about.name";
+    constexpr auto ACHIEVEMENTS      = "hex.builtin.view.achievements.name";
+    constexpr auto CONSTANTS         = "hex.builtin.view.constants.name";
+    constexpr auto CONTENT_STORE     = "hex.builtin.view.store.name";
+    constexpr auto DATA_PROCESSOR    = "hex.builtin.view.data_processor.name";
+    constexpr auto HELP              = "hex.builtin.view.help.name";
+    constexpr auto HEX_EDITOR        = "hex.builtin.view.hex_editor.name";
+    constexpr auto LOG_CONSOLE       = "hex.builtin.view.log_console.name";
+    constexpr auto PATCHES           = "hex.builtin.view.patches.name";
+    constexpr auto PATTERN_DATA      = "hex.builtin.view.pattern_data.name";
+    constexpr auto PATTERN_EDITOR    = "hex.builtin.view.pattern_editor.name";
     constexpr auto PROVIDER_SETTINGS = "hex.builtin.view.provider_settings.name";
-    constexpr auto SETTINGS = "hex.builtin.view.settings.name";
-    constexpr auto THEME_MANAGER = "hex.builtin.view.theme_manager.name";
-    constexpr auto TUTORIAL = "hex.builtin.view.tutorials.name";
+    constexpr auto SETTINGS          = "hex.builtin.view.settings.name";
+    constexpr auto THEME_MANAGER     = "hex.builtin.view.theme_manager.name";
+    constexpr auto TUTORIAL          = "hex.builtin.view.tutorials.name";
+    // clang-format on
 } // namespace views
 
 namespace lang
 {
     constexpr const char *status[UserStatus::MAX] = {
-        "hex.ImHexDiscordRPC.settings.none",
-        "hex.ImHexDiscordRPC.settings.editingProvider",
-        "hex.ImHexDiscordRPC.settings.viewingProvider",
-        "hex.ImHexDiscordRPC.settings.viewingAchievements",
-        "hex.ImHexDiscordRPC.settings.viewingContentStore",
-        "hex.ImHexDiscordRPC.settings.viewingThemeManager",
-        "hex.ImHexDiscordRPC.settings.viewingSettings",
-        "hex.ImHexDiscordRPC.settings.viewingAbout",
+        "hex.ImHexDiscordRPC.settings.status.none",
+        "hex.ImHexDiscordRPC.settings.status.editingProvider",
+        "hex.ImHexDiscordRPC.settings.status.viewingProvider",
+        "hex.ImHexDiscordRPC.settings.status.viewingAchievements",
+        "hex.ImHexDiscordRPC.settings.status.viewingContentStore",
+        "hex.ImHexDiscordRPC.settings.status.viewingThemeManager",
+        "hex.ImHexDiscordRPC.settings.status.viewingSettings",
+        "hex.ImHexDiscordRPC.settings.status.viewingAbout",
     };
 
     // clang-format off
@@ -97,38 +99,12 @@ namespace settings
     }
 } // namespace settings
 
+// static bool once = true;
 static UserStatus userStatus = NONE;
-
-std::unique_ptr<discord::Core *> discordCore = nullptr;
+std::unique_ptr<discord::Core> discordCore = nullptr;
 std::unique_ptr<discord::Activity> discordActivity = nullptr;
 static time_t startTimestamp;
 static bool updateTimestamp = true;
-
-//! A helper method for getting the global (main) Discord activity.
-//! Mainly used because it prints an error when necessary.
-//! @return
-discord::Activity *getActivity()
-{
-    if (discordActivity == nullptr) {
-        hex::log::error("Discord activity shouldn't be nullptr!");
-        return nullptr;
-    }
-
-    return discordActivity.get();
-}
-
-//! A helper method for getting the Discord core.
-//! Mainly used because it prints an error when necessary.
-//! @return
-discord::Core *getCore()
-{
-    if (discordCore == nullptr || *discordCore == nullptr) {
-        hex::log::warn("Discord core shouldn't be nullptr! Rerunning initialisation.");
-        return nullptr;
-    }
-
-    return *discordCore.get();
-}
 
 //! Sets the state for a given Discord activity.
 //! @param activity The activity
@@ -184,24 +160,38 @@ void setActivityTimestamp(discord::Activity *activity)
 
 void updateActivity()
 {
-    const auto core = getCore();
-
     if (!settings::enabled) {
-        core->ActivityManager().UpdateActivity({}, [](auto) {});
+        if (settings::useRelativeTime) {
+            discordCore->ActivityManager().UpdateActivity({}, [](auto) {});
+        }
+
         return;
     }
 
-    const auto activity = getActivity();
-    setActivityTimestamp(activity);
-    setActivityState(activity);
+    setActivityTimestamp(discordActivity.get());
+    setActivityState(discordActivity.get());
 
-    core->ActivityManager().UpdateActivity(*activity, [](const discord::Result res) {
+    discordCore->ActivityManager().UpdateActivity(*discordActivity,
+        [](const discord::Result res) {
+            if (res == discord::Result::Ok) {
+                hex::log::info("Discord activity updated!");
+            } else {
+                hex::log::error("Failed to update Discord activity. :c");
+            }
+        });
+}
+
+void clearActivity()
+{
+    hex::log::info("RunCallbacks before: {}", static_cast<int>(discordCore->RunCallbacks()));
+    discordCore->ActivityManager().ClearActivity([](const discord::Result res) {
         if (res == discord::Result::Ok) {
-            hex::log::info("Discord activity updated!");
-        } else {
-            hex::log::error("Failed to update Discord activity. :c");
+            hex::log::info("Cleared Discord activity!");
         }
+        hex::log::error("Failed to clear Discord activity. :c");
     });
+    hex::log::info("Requested Discord to clear activity.");
+    hex::log::info("RunCallbacks after: {}", static_cast<int>(discordCore->RunCallbacks()));
 }
 
 void updateStatus(const UserStatus status)
@@ -210,23 +200,19 @@ void updateStatus(const UserStatus status)
     updateActivity();
 }
 
-void initDiscord()
-{
-    discord::Activity activity{};
-    activity.SetType(discord::ActivityType::Playing);
-    activity.GetTimestamps().SetStart(0);
-    activity.GetAssets().SetLargeText(hex::format("ImHex [{0}]", IMHEX_VERSION).c_str());
-    activity.GetAssets().SetLargeImage(rpcdata::largeImage);
-
-    updateTimestamp = true;
-    hex::log::debug("Initialised Discord activity.");
-}
-
 void initEvents()
 {
-    const auto providerFocused = [](auto) { updateStatus(VIEWING_PROVIDER); };
-    hex::EventProviderOpened::subscribe(providerFocused);
-    hex::EventProviderClosed::subscribe(providerFocused);
+    const auto providerChange = [] {
+        if (settings::useRelativeTime) {
+            updateTimestamp = true;
+        }
+
+        updateStatus(VIEWING_PROVIDER);
+    };
+
+    hex::EventProviderChanged::subscribe(providerChange);
+    hex::EventProviderOpened::subscribe(providerChange);
+    hex::EventProviderClosed::subscribe(providerChange);
 
     hex::EventViewOpened::subscribe([](const hex::View *view) {
         if (view == nullptr || !view->isFocused()) {
@@ -247,18 +233,14 @@ void initEvents()
         }
     });
 
-    hex::EventFrameEnd::subscribe([] { getCore()->RunCallbacks(); });
+    hex::EventFrameEnd::subscribe([] {
+        if (settings::enabled) {
+            discordCore->RunCallbacks();
+        }
+    });
 
     // Cleanup
-    hex::EventWindowClosing::subscribe([](auto) {
-        getCore()->ActivityManager().ClearActivity([](const discord::Result res) {
-            if (res == discord::Result::Ok) {
-                hex::log::info("Cleared Discord activity!");
-            } else {
-                hex::log::error("Failed to clear Discord activity. :c");
-            }
-        });
-    });
+    hex::EventImHexClosing::subscribe(clearActivity);
 
     hex::log::debug("Registered events.");
 }
@@ -270,38 +252,134 @@ void initSettings()
 
         ImHexSettings::setCategoryDescription(category, description);
         ImHexSettings::add<ImHexWidgets::Checkbox>(category, "", enabled, false);
-        ImHexSettings::add<ImHexWidgets::Checkbox>(category, "", showProvider, false);
-        // .setEnabledCallback(settings::isEnabled);
-        ImHexSettings::add<ImHexWidgets::Checkbox>(category, "", showStatus, false);
-        // .setEnabledCallback(settings::isEnabled);
-        ImHexSettings::add<ImHexWidgets::Checkbox>(category, "", showTimestamp, false);
-        // .setEnabledCallback(settings::isEnabled);
-        ImHexSettings::add<ImHexWidgets::Checkbox>(category, "", useRelativeTime, false);
-        // .setEnabledCallback(settings::isEnabled);
+        ImHexSettings::add<ImHexWidgets::Checkbox>(category, "", showProject, false)
+            .setEnabledCallback(settings::isEnabled);
+        ImHexSettings::add<ImHexWidgets::Checkbox>(category, "", showProvider, false)
+            .setEnabledCallback(settings::isEnabled);
+        ImHexSettings::add<ImHexWidgets::Checkbox>(category, "", showStatus, false)
+            .setEnabledCallback(settings::isEnabled);
+        ImHexSettings::add<ImHexWidgets::Checkbox>(category, "", showTimestamp, false)
+            .setEnabledCallback(settings::isEnabled);
+        ImHexSettings::add<ImHexWidgets::Checkbox>(category, "", useRelativeTime, false)
+            .setEnabledCallback(settings::isEnabled);
     }
 
     ImHexSettings::onChange(lang::category, lang::enabled,
         [](const ImHexSettings::SettingsValue &val) {
-            settings::enabled = val.get<bool>(true);
+            const auto v = val.get<bool>(false);
+            hex::log::warn("onChange::enabled set to {}", v);
+            if (v == settings::enabled) {
+                return;
+            }
+
+            settings::enabled = v;
+            if (v) {
+                hex::log::warn("onChange::enabled YES");
+                updateActivity();
+            } else {
+                hex::log::warn("onChange::enabled NO");
+                clearActivity();
+            }
+        });
+    ImHexSettings::onChange(lang::category, lang::showProject,
+        [](const ImHexSettings::SettingsValue &val) {
+            const auto v = val.get<bool>(false);
+            if (v == settings::showProject) {
+                return;
+            }
+
+            settings::showProject = v;
+            updateActivity();
         });
     ImHexSettings::onChange(lang::category, lang::showProvider,
         [](const ImHexSettings::SettingsValue &val) {
-            settings::showProvider = val.get<bool>(true);
+            const auto v = val.get<bool>(false);
+            if (v == settings::showProvider) {
+                return;
+            }
+
+            settings::showProvider = v;
+            updateActivity();
         });
     ImHexSettings::onChange(lang::category, lang::showStatus,
         [](const ImHexSettings::SettingsValue &val) {
-            settings::showStatus = val.get<bool>(true);
+            const auto v = val.get<bool>(false);
+            if (v == settings::showStatus) {
+                return;
+            }
+
+            settings::showStatus = v;
+            updateActivity();
         });
     ImHexSettings::onChange(lang::category, lang::showTimestamp,
         [](const ImHexSettings::SettingsValue &val) {
-            settings::showTimestamp = val.get<bool>(true);
+            const auto v = val.get<bool>(false);
+            if (v == settings::showTimestamp) {
+                return;
+            }
+
+            settings::showTimestamp = v;
+            updateActivity();
         });
     ImHexSettings::onChange(lang::category, lang::useRelativeTime,
         [](const ImHexSettings::SettingsValue &val) {
-            settings::useRelativeTime = val.get<bool>(true);
+            const auto v = val.get<bool>(false);
+            if (v == settings::useRelativeTime) {
+                return;
+            }
+
+            settings::useRelativeTime = v;
+            updateActivity();
         });
 
     hex::log::debug("Initialised settings.");
+}
+
+discord::Result initDiscord()
+{
+    discord::Core *core = nullptr;
+    const auto res =
+        discord::Core::Create(rpcdata::clientId, DiscordCreateFlags_Default, &core);
+    if (res != discord::Result::Ok) {
+        return res;
+    }
+    discordCore.reset(core);
+    core = nullptr;
+    hex::log::debug("Created Discord core.");
+
+    discordCore->ActivityManager().UpdateActivity({}, [](const discord::Result r) {
+        hex::log::error("INIT DISCORD ### UpdateActivity result {}", static_cast<int>(r));
+    });
+
+    discordCore->SetLogHook(discord::LogLevel::Debug,
+        [](const discord::LogLevel level, const auto msg) {
+            using namespace discord;
+            if (level == LogLevel::Debug) {
+                hex::log::debug(msg);
+            } else if (level == LogLevel::Info) {
+                hex::log::info(msg);
+            } else if (level == LogLevel::Warn) {
+                hex::log::warn(msg);
+            } else if (level == LogLevel::Error) {
+                hex::log::error(msg);
+            } else {
+                hex::log::info("UNKNOWN LEVEL > {}", msg);
+            }
+        });
+
+    discord::Activity activity{};
+    activity.SetType(discord::ActivityType::Playing);
+    // activity.GetTimestamps().SetStart(0);
+    activity.GetAssets().SetLargeText(
+        hex::format("ImHex [{}]", hex::ImHexApi::System::getImHexVersion().get(true))
+            .c_str());
+    activity.GetAssets().SetLargeImage(rpcdata::largeImage);
+    discordActivity = std::make_unique<discord::Activity>(activity);
+
+    updateTimestamp = true;
+    hex::log::debug("Initialised Discord activity.");
+
+    return discord::Result::Ok;
 }
 
 IMHEX_PLUGIN_SETUP("ImHexDiscordRPC", "aoqia", "Adds Discord RPC to ImHex!")
@@ -313,10 +391,13 @@ IMHEX_PLUGIN_SETUP("ImHexDiscordRPC", "aoqia", "Adds Discord RPC to ImHex!")
             nlohmann::json::parse(romfs::get(path).string()));
     }
 
-    discord::Core::Create(rpcdata::clientId, DiscordCreateFlags_Default,
-        discordCore.get());
+    const auto res = initDiscord();
+    if (res != discord::Result::Ok) {
+        hex::log::error("Failed to create Discord core! Expected Ok got {}.",
+            static_cast<int>(res));
+        return;
+    }
 
-    initDiscord();
     initEvents();
     initSettings();
 }

@@ -4,7 +4,7 @@
     "country": "United States",
     "fallback": true,
     "translations": {
-        "hex.ImHexDiscordRPC.settings": "ImHexDiscordRPC",
+        "hex.ImHexDiscordRPC.settings": "RPC",
         "hex.ImHexDiscordRPC.settings.description": "Discord Rich Presence for ImHex!!",
 
         "hex.ImHexDiscordRPC.settings.enabled": "Enable RPC",
@@ -15,14 +15,14 @@
 
         "hex.ImHexDiscordRPC.settings.status.none": "None",
         "hex.ImHexDiscordRPC.settings.status.editingProvider": "Editing {}",
-        "hex.ImHexDiscordRPC.settings.status.viewingProvider": "{}",
-        "hex.ImHexDiscordRPC.settings.status.viewingAchievements": "Looking at achievements",
-        "hex.ImHexDiscordRPC.settings.status.viewingContentStore": "Browsing the content store",
-        "hex.ImHexDiscordRPC.settings.status.viewingThemeManager": "Making it pretty!",
-        "hex.ImHexDiscordRPC.settings.status.viewingSettings": "Tweaking some settings",
-        "hex.ImHexDiscordRPC.settings.status.viewingAbout": "Sightseeing!",
+        "hex.ImHexDiscordRPC.settings.status.viewingProvider": "Viewing {}",
+        "hex.ImHexDiscordRPC.settings.status.viewingAchievements": "\uD83D\uDE80 Achievements",
+        "hex.ImHexDiscordRPC.settings.status.viewingContentStore": "\ud83d\udce6 Content store",
+        "hex.ImHexDiscordRPC.settings.status.viewingThemeManager": "\u2728 Making it pretty!",
+        "hex.ImHexDiscordRPC.settings.status.viewingSettings": "\u2699\ufe0f Settings",
+        "hex.ImHexDiscordRPC.settings.status.viewingAbout": "\ud83d\udc96 Sightseeing!",
 
         "hex.ImHexDiscordRPC.settings.showTimestamp": "Show timestamp",
-        "hex.ImHexDiscordRPC.settings.useRelativeTime": "Show timestamp"
+        "hex.ImHexDiscordRPC.settings.useRelativeTime": "Use relative timestamp"
     }
 }
