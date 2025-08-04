@@ -5,6 +5,17 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 project(ImHexDiscordRPC LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 
+# Set up CCache if available
+
+find_program(CCACHE_PROGRAM ccache)
+if (CCACHE_PROGRAM)
+    message(STATUS "ccache found: (${CCACHE_PROGRAM})")
+    set_property(GLOBAL PROPERTY CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
+    set_property(GLOBAL PROPERTY CMAKE_C_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
+endif ()
+
+# Dependency setup
+
 include(ImHexSDK)
 add_subdirectory("lib/DiscordGameSDK")
 

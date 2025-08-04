@@ -7,15 +7,14 @@
         "hex.ImHexDiscordRPC.settings": "RPC",
         "hex.ImHexDiscordRPC.settings.description": "Discord Rich Presence for ImHex!!",
 
-        "hex.ImHexDiscordRPC.settings.enabled": "Enable RPC",
+        "hex.ImHexDiscordRPC.settings.enabled": "Enable RPC (READ TOOLTIP PLS)",
+        "hex.ImHexDiscordRPC.settings.enabled.tooltip": "WARNING: The RPC on Discord won't go away when disabled!!! It only goes away once ImHex is closed. This is a bug in the legacy Game SDK that Discord wont fix. Until a better solution arises for C++, it will be like this.",
 
         "hex.ImHexDiscordRPC.settings.showProject": "Show project",
         "hex.ImHexDiscordRPC.settings.showProvider": "Show provider",
         "hex.ImHexDiscordRPC.settings.showStatus": "Show status",
 
         "hex.ImHexDiscordRPC.settings.status.none": "None",
-        "hex.ImHexDiscordRPC.settings.status.editingProvider": "Editing {}",
-        "hex.ImHexDiscordRPC.settings.status.viewingProvider": "Viewing {}",
         "hex.ImHexDiscordRPC.settings.status.viewingAchievements": "\uD83D\uDE80 Achievements",
         "hex.ImHexDiscordRPC.settings.status.viewingContentStore": "\ud83d\udce6 Content store",
         "hex.ImHexDiscordRPC.settings.status.viewingThemeManager": "\u2728 Making it pretty!",

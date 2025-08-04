@@ -22,13 +22,12 @@ namespace ImHexWidgets = ImHexSettings::Widgets;
 enum UserStatus : int
 {
     NONE,
-    EDITING_PROVIDER,
-    VIEWING_PROVIDER,
     VIEWING_ACHIEVEMENTS,
     VIEWING_CONTENT_STORE,
     VIEWING_THEME_MANAGER,
     VIEWING_SETTINGS,
     VIEWING_ABOUT,
+    PREVIOUS,
     MAX,
 };
 
@@ -41,7 +40,7 @@ namespace rpcdata
 namespace views
 {
     // clang-format off
-    constexpr auto ABOUT             = "hex.builtin.view.about.name";
+    constexpr auto ABOUT             = "hex.builtin.view.help.about.name";
     constexpr auto ACHIEVEMENTS      = "hex.builtin.view.achievements.name";
     constexpr auto CONSTANTS         = "hex.builtin.view.constants.name";
     constexpr auto CONTENT_STORE     = "hex.builtin.view.store.name";
@@ -63,8 +62,6 @@ namespace lang
 {
     constexpr const char *status[UserStatus::MAX] = {
         "hex.ImHexDiscordRPC.settings.status.none",
-        "hex.ImHexDiscordRPC.settings.status.editingProvider",
-        "hex.ImHexDiscordRPC.settings.status.viewingProvider",
         "hex.ImHexDiscordRPC.settings.status.viewingAchievements",
         "hex.ImHexDiscordRPC.settings.status.viewingContentStore",
         "hex.ImHexDiscordRPC.settings.status.viewingThemeManager",
@@ -76,6 +73,7 @@ namespace lang
     constexpr auto category        = "hex.ImHexDiscordRPC.settings";
     constexpr auto description     = "hex.ImHexDiscordRPC.settings.description";
     constexpr auto enabled         = "hex.ImHexDiscordRPC.settings.enabled";
+    constexpr auto enabledTip      = "hex.ImHexDiscordRPC.settings.enabled.tooltip";
     constexpr auto showProject     = "hex.ImHexDiscordRPC.settings.showProject";
     constexpr auto showProvider    = "hex.ImHexDiscordRPC.settings.showProvider";
     constexpr auto showStatus      = "hex.ImHexDiscordRPC.settings.showStatus";
@@ -99,15 +97,15 @@ namespace settings
     }
 } // namespace settings
 
-// static bool once = true;
 static UserStatus userStatus = NONE;
+static UserStatus prevUserStatus = NONE;
 std::unique_ptr<discord::Core> discordCore = nullptr;
 std::unique_ptr<discord::Activity> discordActivity = nullptr;
 static time_t startTimestamp;
 static bool updateTimestamp = true;
 
 //! Sets the state for a given Discord activity.
-//! @param activity The activity
+//! @param activity the activity
 void setActivityState(discord::Activity *activity)
 {
     std::string details{};
@@ -125,24 +123,20 @@ void setActivityState(discord::Activity *activity)
         details = hex::ImHexApi::Provider::get()->getName();
     }
 
-    // Set the state text, which can be either the provider, status text or none.
+    // Set the secondary details text, which can be either the provider, status text or
+    // none.
     if (hasProject && hasProvider) {
         state = hex::ImHexApi::Provider::get()->getName();
     } else if (userStatus != NONE) {
         state = hex::LocalizationManager::getLocalizedString(lang::status[userStatus]);
     }
 
-    // If the details is empty, it means we don't have a project or provider loaded.
-    // Use state text as details in this case.
-    if (details.empty()) {
-        details = state;
-        state.clear();
-    }
-
     activity->SetDetails(details.c_str());
     activity->SetState(state.c_str());
 }
 
+//! Sets the timestamp for a given Discord activity.
+//! @param activity the activity
 void setActivityTimestamp(discord::Activity *activity)
 {
     if (settings::showTimestamp) {
@@ -158,13 +152,26 @@ void setActivityTimestamp(discord::Activity *activity)
     }
 }
 
+void clearActivity()
+{
+    discordCore->ActivityManager().ClearActivity([](const discord::Result res) {
+        if (res == discord::Result::Ok) {
+            hex::log::info("Cleared Discord activity!");
+        } else {
+            hex::log::error("Failed to clear Discord activity. :c");
+        }
+    });
+    hex::log::debug("Requested Discord to clear activity.");
+
+    // Force run callbacks for situations where FrameEnd isn't called after.
+    discordCore->RunCallbacks();
+}
+
 void updateActivity()
 {
     if (!settings::enabled) {
-        if (settings::useRelativeTime) {
-            discordCore->ActivityManager().UpdateActivity({}, [](auto) {});
-        }
-
+        // hex::log::debug("Settings disabled, updating with blank activity.");
+        // discordCore->ActivityManager().UpdateActivity({}, [](auto) {});
         return;
     }
 
@@ -181,44 +188,24 @@ void updateActivity()
         });
 }
 
-void clearActivity()
-{
-    hex::log::info("RunCallbacks before: {}", static_cast<int>(discordCore->RunCallbacks()));
-    discordCore->ActivityManager().ClearActivity([](const discord::Result res) {
-        if (res == discord::Result::Ok) {
-            hex::log::info("Cleared Discord activity!");
-        }
-        hex::log::error("Failed to clear Discord activity. :c");
-    });
-    hex::log::info("Requested Discord to clear activity.");
-    hex::log::info("RunCallbacks after: {}", static_cast<int>(discordCore->RunCallbacks()));
-}
-
 void updateStatus(const UserStatus status)
 {
-    userStatus = status;
+    prevUserStatus = userStatus;
+    userStatus = status == PREVIOUS ? prevUserStatus : status;
     updateActivity();
 }
 
-void initEvents()
+void updateStatusFromView(const hex::View *view)
 {
-    const auto providerChange = [] {
-        if (settings::useRelativeTime) {
-            updateTimestamp = true;
+    if (!settings::showStatus) {
+        if (userStatus != NONE) {
+            updateStatus(NONE);
         }
 
-        updateStatus(VIEWING_PROVIDER);
-    };
+        return;
+    }
 
-    hex::EventProviderChanged::subscribe(providerChange);
-    hex::EventProviderOpened::subscribe(providerChange);
-    hex::EventProviderClosed::subscribe(providerChange);
-
-    hex::EventViewOpened::subscribe([](const hex::View *view) {
-        if (view == nullptr || !view->isFocused()) {
-            return;
-        }
-
+    if (view->getWindowOpenState()) {
         const auto name = view->getUnlocalizedName().get();
         if (name == views::ACHIEVEMENTS) {
             updateStatus(VIEWING_ACHIEVEMENTS);
@@ -230,19 +217,12 @@ void initEvents()
             updateStatus(VIEWING_SETTINGS);
         } else if (name == views::ABOUT) {
             updateStatus(VIEWING_ABOUT);
+        } else if (userStatus != NONE) {
+            updateStatus(NONE);
         }
-    });
-
-    hex::EventFrameEnd::subscribe([] {
-        if (settings::enabled) {
-            discordCore->RunCallbacks();
-        }
-    });
-
-    // Cleanup
-    hex::EventImHexClosing::subscribe(clearActivity);
-
-    hex::log::debug("Registered events.");
+    } else {
+        updateStatus(NONE);
+    }
 }
 
 void initSettings()
@@ -251,7 +231,8 @@ void initSettings()
         using namespace lang;
 
         ImHexSettings::setCategoryDescription(category, description);
-        ImHexSettings::add<ImHexWidgets::Checkbox>(category, "", enabled, false);
+        ImHexSettings::add<ImHexWidgets::Checkbox>(category, "", enabled, false)
+            .setTooltip(enabledTip);
         ImHexSettings::add<ImHexWidgets::Checkbox>(category, "", showProject, false)
             .setEnabledCallback(settings::isEnabled);
         ImHexSettings::add<ImHexWidgets::Checkbox>(category, "", showProvider, false)
@@ -267,17 +248,14 @@ void initSettings()
     ImHexSettings::onChange(lang::category, lang::enabled,
         [](const ImHexSettings::SettingsValue &val) {
             const auto v = val.get<bool>(false);
-            hex::log::warn("onChange::enabled set to {}", v);
             if (v == settings::enabled) {
                 return;
             }
 
             settings::enabled = v;
             if (v) {
-                hex::log::warn("onChange::enabled YES");
                 updateActivity();
             } else {
-                hex::log::warn("onChange::enabled NO");
                 clearActivity();
             }
         });
@@ -309,7 +287,15 @@ void initSettings()
             }
 
             settings::showStatus = v;
-            updateActivity();
+            if (!v) {
+                updateStatus(NONE);
+            } else {
+                if (userStatus == NONE && prevUserStatus != NONE) {
+                    updateStatus(prevUserStatus);
+                }
+
+                updateActivity();
+            }
         });
     ImHexSettings::onChange(lang::category, lang::showTimestamp,
         [](const ImHexSettings::SettingsValue &val) {
@@ -335,9 +321,43 @@ void initSettings()
     hex::log::debug("Initialised settings.");
 }
 
+void initEvents()
+{
+    // Provider
+
+    const auto providerChange = [] {
+        if (settings::useRelativeTime) {
+            updateTimestamp = true;
+        }
+
+        updateActivity();
+    };
+
+    hex::EventProviderChanged::subscribe(providerChange);
+    hex::EventProviderOpened::subscribe(providerChange);
+    hex::EventProviderClosed::subscribe(providerChange);
+
+    // View
+
+    hex::EventViewOpened::subscribe(updateStatusFromView);
+    hex::EventViewClosed::subscribe(updateStatusFromView);
+
+    // Other
+
+    hex::EventFrameEnd::subscribe([] {
+        if (discordCore != nullptr) {
+            discordCore->RunCallbacks();
+        }
+    });
+
+    hex::EventImHexClosing::subscribe(clearActivity);
+
+    hex::log::debug("Registered events.");
+}
+
 discord::Result initDiscord()
 {
-    discord::Core *core = nullptr;
+    discord::Core *core{};
     const auto res =
         discord::Core::Create(rpcdata::clientId, DiscordCreateFlags_Default, &core);
     if (res != discord::Result::Ok) {
@@ -347,29 +367,28 @@ discord::Result initDiscord()
     core = nullptr;
     hex::log::debug("Created Discord core.");
 
-    discordCore->ActivityManager().UpdateActivity({}, [](const discord::Result r) {
-        hex::log::error("INIT DISCORD ### UpdateActivity result {}", static_cast<int>(r));
-    });
+    // Seems to not do anything despite Discord saying it does???
+    discordCore->SetLogHook(discord::LogLevel::Debug, [](auto level, auto msg) {
+        using namespace discord;
 
-    discordCore->SetLogHook(discord::LogLevel::Debug,
-        [](const discord::LogLevel level, const auto msg) {
-            using namespace discord;
-            if (level == LogLevel::Debug) {
-                hex::log::debug(msg);
-            } else if (level == LogLevel::Info) {
-                hex::log::info(msg);
-            } else if (level == LogLevel::Warn) {
-                hex::log::warn(msg);
-            } else if (level == LogLevel::Error) {
-                hex::log::error(msg);
-            } else {
-                hex::log::info("UNKNOWN LEVEL > {}", msg);
-            }
-        });
+        const auto msgFmt = "[Discord] {}";
+        if (level == LogLevel::Debug) {
+            hex::log::debug(msgFmt, msg);
+        } else if (level == LogLevel::Info) {
+            hex::log::info(msgFmt, msg);
+        } else if (level == LogLevel::Warn) {
+            hex::log::warn(msgFmt, msg);
+        } else if (level == LogLevel::Error) {
+            hex::log::error(msgFmt, msg);
+        } else {
+            hex::log::info("UNKNOWN LEVEL >> [Discord] {}", msg);
+        }
+    });
 
     discord::Activity activity{};
     activity.SetType(discord::ActivityType::Playing);
-    // activity.GetTimestamps().SetStart(0);
+    activity.SetSupportedPlatforms(
+        static_cast<std::uint32_t>(discord::ActivitySupportedPlatformFlags::Desktop));
     activity.GetAssets().SetLargeText(
         hex::format("ImHex [{}]", hex::ImHexApi::System::getImHexVersion().get(true))
             .c_str());
