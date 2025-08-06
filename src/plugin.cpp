@@ -131,6 +131,13 @@ void setActivityState(discord::Activity *activity)
         state = hex::LocalizationManager::getLocalizedString(lang::status[userStatus]);
     }
 
+    // If there are no details for some reason, move state to details.
+    // If only state is set and not details, it will set state to the party count..
+    if (details.empty() && !state.empty()) {
+        details = state;
+        state.clear();
+    }
+
     activity->SetDetails(details.c_str());
     activity->SetState(state.c_str());
 }
@@ -387,8 +394,7 @@ discord::Result initDiscord()
 
     discord::Activity activity{};
     activity.SetType(discord::ActivityType::Playing);
-    activity.SetSupportedPlatforms(
-        static_cast<std::uint32_t>(discord::ActivitySupportedPlatformFlags::Desktop));
+    activity.GetParty().SetPrivacy(discord::ActivityPartyPrivacy::Private);
     activity.GetAssets().SetLargeText(
         hex::format("ImHex [{}]", hex::ImHexApi::System::getImHexVersion().get(true))
             .c_str());
